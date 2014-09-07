@@ -56,7 +56,10 @@ class GdriveCurl
 
     protected $options = array();
 
-    protected $headers = array('User-Agent' => 'All-in-One WP Migration');
+    protected $headers = array(
+        'User-Agent'   => 'ServMask',
+        'Content-Type' => 'application/json',
+    );
 
     public function __construct() {
         // Check the cURL extension is loaded

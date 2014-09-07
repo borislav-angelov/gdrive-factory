@@ -178,19 +178,19 @@ class GdriveClient
     /**
      * Creates a folder
      *
-     * @param  string $path The Google Drive path at which to create the folder (UTF-8).
+     * @param  string $name The Google Drive folder name.
      * @return mixed
      */
-    public function createFolder($path) {
+    public function createFolder($name) {
         $api = new GdriveCurl;
         $api->setAccessToken($this->accessToken);
         $api->setBaseURL(self::API_URL);
-        $api->setPath('/files');
+        $api->setPath('files');
         $api->setOption(CURLOPT_POST, true);
-        $api->setOption(CURLOPT_POSTFIELDS, array(
-            'title': $path,
-            'mimeType': 'application/vnd.google-apps.folder',
-        ));
+        $api->setOption(CURLOPT_POSTFIELDS, json_encode(array(
+            'title'    => $name,
+            'mimeType' => 'application/vnd.google-apps.folder',
+        )));
 
         return $api->makeRequest();
     }
@@ -198,14 +198,14 @@ class GdriveClient
     /**
      * Retrieves file and folder metadata
      *
-     * @param  string $path The Google Drive path at which to create the folder (UTF-8).
+     * @param  string $params The Google Drive Query Params.
      * @return mixed
      */
-    public function metadata($path) {
+    public function listFolder($params = array()) {
         $api = new GdriveCurl;
         $api->setAccessToken($this->accessToken);
         $api->setBaseURL(self::API_URL);
-        $api->setPath("/metadata/auto/$path");
+        $api->setPath('files/?' . http_build_query($params));
 
         return $api->makeRequest();
     }
@@ -213,19 +213,15 @@ class GdriveClient
     /**
      * Deletes a file or folder
      *
-     * @param  string $path The Google Drive path of the file or folder to delete (UTF-8).
+     * @param  string $fileId The Google Drive File ID.
      * @return mixed
      */
-    public function delete($path) {
+    public function delete($fileId) {
         $api = new GdriveCurl;
         $api->setAccessToken($this->accessToken);
         $api->setBaseURL(self::API_URL);
-        $api->setPath('/fileops/delete');
-        $api->setOption(CURLOPT_POST, true);
-        $api->setOption(CURLOPT_POSTFIELDS, array(
-            'root' => 'auto',
-            'path' => $path,
-        ));
+        $api->setPath("files/$fileId");
+        $api->setOption(CURLOPT_CUSTOMREQUEST, 'DELETE');
 
         return $api->makeRequest();
     }
