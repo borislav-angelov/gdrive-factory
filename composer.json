@@ -1,0 +1,25 @@
+{
+    "name": "gdrive-factory/gdrive-factory",
+    "type": "library",
+    "description": "Lightweight factory class for managing Google Drive API instance",
+    "keywords": ["google drive api", "google drive client"],
+    "homepage": "http://github.com/borislav-angelov/gdrive-factory",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Bobby Angelov",
+            "email": "borislav.angelov@gmail.com",
+            "homepage": "https://servmask.com",
+            "role": "developer"
+        },
+        {
+            "name": "Yani Iliev",
+            "email": "yani@iliev.me",
+            "homepage": "https://yani.iliev.me",
+            "role": "developer"
+        }
+    ],
+    "require": {
+        "php": ">=5.2.0"
+    }
+}
