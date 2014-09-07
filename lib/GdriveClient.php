@@ -151,34 +151,46 @@ class GdriveClient
     /**
      * Downloads a file from Google Drive
      *
-     * @param  string   $path      The path to the file on Google Drive (UTF-8).
+     * @param  string   $fileId    The Google Drive File ID.
      * @param  resource $outStream If the file exists, the file contents will be written to this stream.
      * @return mixed
      */
-    public function getFile($path, $outStream) {
+    public function getFile($fileId, $outStream) {
         $api = new GdriveCurl;
         $api->setAccessToken($this->accessToken);
         $api->setBaseURL(self::API_URL);
-        $api->setPath("/files/auto/$path");
-        $api->setOption(CURLOPT_WRITEFUNCTION, function($ch, $data) use ($outStream) {
-            $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            if ($status !== 200 && ($response = json_decode($data, true))) {
-                throw new Exception($response['error'], $status);
+        $api->setPath("files/$fileId");
+
+        // Make request
+        $data = array();
+        if (($data = $api->makeRequest())) {
+            if (isset($data['downloadUrl']) && ($downloadUrl = $data['downloadUrl'])) {
+                $download = new GdriveCurl;
+                $download->setAccessToken($this->accessToken);
+                $download->setBaseURL($downloadUrl);
+                $download->setOption(CURLOPT_WRITEFUNCTION, function($ch, $data) use ($outStream) {
+                    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    if ($status !== 200 && ($response = json_decode($data, true))) {
+                        throw new Exception($response['error'], $status);
+                    }
+
+                    // Write data to stream
+                    fwrite($outStream, $data);
+
+                    return strlen($data);
+                });
+
+                return $download->makeRequest();
             }
+        }
 
-            // Write data to stream
-            fwrite($outStream, $data);
-
-            return strlen($data);
-        });
-
-        return $api->makeRequest();
+        return $data;
     }
 
     /**
      * Creates a folder
      *
-     * @param  string $name The Google Drive folder name.
+     * @param  string $name The Google Drive Folder Name.
      * @return mixed
      */
     public function createFolder($name) {

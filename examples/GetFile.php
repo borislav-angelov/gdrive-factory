@@ -7,7 +7,7 @@ $accessToken = '';
 $client = new GdriveClient($accessToken);
 
 $file = fopen('./Car.jpg', 'wb');
-$response = $client->getFile('/Photos/BMW.jpg', $file);
+$response = $client->getFile('fileId', $file);
 fclose($file);
 
 print_r($response);
