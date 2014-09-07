@@ -185,11 +185,11 @@ class GdriveClient
         $api = new GdriveCurl;
         $api->setAccessToken($this->accessToken);
         $api->setBaseURL(self::API_URL);
-        $api->setPath('/fileops/create_folder');
+        $api->setPath('/files');
         $api->setOption(CURLOPT_POST, true);
         $api->setOption(CURLOPT_POSTFIELDS, array(
-            'root' => 'auto',
-            'path' => $path,
+            'title': $path,
+            'mimeType': 'application/vnd.google-apps.folder',
         ));
 
         return $api->makeRequest();
