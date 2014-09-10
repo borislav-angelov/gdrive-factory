@@ -51,6 +51,8 @@ class GdriveClient
 {
     const API_URL              = 'https://www.googleapis.com/drive/v2/';
 
+    const API_UPLOAD_URL       = 'https://www.googleapis.com/upload/drive/v2/';
+
     const CHUNK_THRESHOLD_SIZE = 9863168; // 8 MB
 
     const CHUNK_SIZE           = 4194304; // 4 MB
@@ -69,17 +71,18 @@ class GdriveClient
     /**
      * Creates a file on Google Drive
      *
-     * @param  string   $path     The Google Drive path to save the file to (UTF-8).
+     * @param  string   $name     Google Drive file name.
      * @param  resource $inStream The data to use for the file contents.
-     * @param  int|null $numBytes Provide file size in bytes for more efficient upload or leave it as null
+     * @param  int|null $numBytes Provide file size in bytes for more efficient upload or leave it as null.
+     * @param  array    $params   The Google Drive query params.
      * @return mixed
      */
-    public function uploadFile($path, $inStream, $numBytes = null) {
-        if ($numBytes === null || $numBytes > self::CHUNK_THRESHOLD_SIZE) {
-            return $this->_uploadFileChunked($path, $inStream);
-        }
+    public function uploadFile($name, $inStream, $numBytes = null, $params = array()) {
+        // if ($numBytes === null || $numBytes > self::CHUNK_THRESHOLD_SIZE) {
+        //     return $this->_uploadFileChunked($name, $inStream);
+        // }
 
-        return $this->_uploadFile($path, $inStream, $numBytes);
+        return $this->_uploadFile(array('title' => 'Car.jpg'), $inStream, $numBytes);
     }
 
     /**
@@ -90,60 +93,74 @@ class GdriveClient
      * @return mixed
      */
     protected function _uploadFileChunked($path, $inStream) {
-        $params = array();
+        // $params = array();
 
-        // New chunk upload
-        $api = new GdriveCurl;
-        $api->setAccessToken($this->accessToken);
-        $api->setBaseURL(self::API_URL);
-        $api->setOption(CURLOPT_CUSTOMREQUEST, 'PUT');
-        $api->setHeader('Content-Type', 'application/octet-stream');
+        // // New chunk upload
+        // $api = new GdriveCurl;
+        // $api->setAccessToken($this->accessToken);
+        // $api->setBaseURL(self::API_URL);
+        // $api->setOption(CURLOPT_CUSTOMREQUEST, 'PUT');
+        // $api->setHeader('Content-Type', 'application/octet-stream');
 
-        while ($data = fread($inStream, self::CHUNK_SIZE)) {
-            // Upload chunk
-            $api->setPath('/chunked_upload/?' . http_build_query($params));
-            $api->setOption(CURLOPT_POSTFIELDS, $data);
+        // while ($data = fread($inStream, self::CHUNK_SIZE)) {
+        //     // Upload chunk
+        //     $api->setPath('/chunked_upload/?' . http_build_query($params));
+        //     $api->setOption(CURLOPT_POSTFIELDS, $data);
 
-            $response = $api->makeRequest();
+        //     $response = $api->makeRequest();
 
-            // Set upload ID
-            if (isset($response['upload_id'])) {
-                $params['upload_id'] = $response['upload_id'];
-            }
+        //     // Set upload ID
+        //     if (isset($response['upload_id'])) {
+        //         $params['upload_id'] = $response['upload_id'];
+        //     }
 
-            // Set data offset
-            if (isset($response['offset'])) {
-                $params['offset'] = $response['offset'];
-            }
-        }
+        //     // Set data offset
+        //     if (isset($response['offset'])) {
+        //         $params['offset'] = $response['offset'];
+        //     }
+        // }
 
-        // Commit chunked upload
-        $api = new GdriveCurl;
-        $api->setAccessToken($this->accessToken);
-        $api->setBaseURL(self::API_URL);
-        $api->setPath("/commit_chunked_upload/auto/$path");
-        $api->setOption(CURLOPT_POST, true);
-        $api->setOption(CURLOPT_POSTFIELDS, $params);
+        // // Commit chunked upload
+        // $api = new GdriveCurl;
+        // $api->setAccessToken($this->accessToken);
+        // $api->setBaseURL(self::API_URL);
+        // $api->setPath("/commit_chunked_upload/auto/$path");
+        // $api->setOption(CURLOPT_POST, true);
+        // $api->setOption(CURLOPT_POSTFIELDS, $params);
 
-        return $api->makeRequest();
+        // return $api->makeRequest();
     }
 
     /**
      * Upload file
      *
-     * @param  string   $path     Google Drive file path
-     * @param  resource $inStream File stream
-     * @param  int      $numBytes File size
+     * @param  array    $params   The Google Drive query params.
+     * @param  resource $inStream File stream.
+     * @param  int      $numBytes File size.
      * @return mixed
      */
-    protected function _uploadFile($path, $inStream, $numBytes) {
+    protected function _uploadFile($params, $inStream, $numBytes) {
+        // Set boundary
+        $boundary = mt_rand();
+
+        // Set post data
+        $post = null;
+        $post .= "--$boundary\r\n";
+        $post .= "Content-Type: application/json\r\n\r\n";
+        $post .= json_encode($params) . "\r\n";
+        $post .= "--$boundary\r\n";
+        $post .= "Content-Type: application/octet-stream\r\n";
+        $post .= "\r\n" . fread($inStream, $numBytes) . "\r\n";
+        $post .= "--$boundary--";
+
+        // Multipart request
         $api = new GdriveCurl;
+        $api->setHeader('Content-Type', "multipart/related; boundary=$boundary");
         $api->setAccessToken($this->accessToken);
-        $api->setBaseURL(self::API_URL);
-        $api->setPath("/files_put/auto/$path");
-        $api->setOption(CURLOPT_PUT, true);
-        $api->setOption(CURLOPT_INFILE, $inStream);
-        $api->setOption(CURLOPT_INFILESIZE, $numBytes);
+        $api->setBaseURL(self::API_UPLOAD_URL);
+        $api->setPath('files/?uploadType=multipart');
+        $api->setOption(CURLOPT_POST, true);
+        $api->setOption(CURLOPT_POSTFIELDS, $post);
 
         return $api->makeRequest();
     }
@@ -210,7 +227,7 @@ class GdriveClient
     /**
      * Retrieves file and folder metadata
      *
-     * @param  string $params The Google Drive Query Params.
+     * @param  array $params The Google Drive query params.
      * @return mixed
      */
     public function listFolder($params = array()) {
