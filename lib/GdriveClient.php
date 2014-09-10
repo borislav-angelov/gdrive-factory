@@ -71,28 +71,28 @@ class GdriveClient
     /**
      * Creates a file on Google Drive
      *
-     * @param  string   $name     Google Drive file name.
+     * @param  array    $params   The Google Drive query params.
      * @param  resource $inStream The data to use for the file contents.
      * @param  int|null $numBytes Provide file size in bytes for more efficient upload or leave it as null.
-     * @param  array    $params   The Google Drive query params.
      * @return mixed
      */
-    public function uploadFile($name, $inStream, $numBytes = null, $params = array()) {
-        // if ($numBytes === null || $numBytes > self::CHUNK_THRESHOLD_SIZE) {
-        //     return $this->_uploadFileChunked($name, $inStream);
-        // }
+    public function uploadFile(array $params, $inStream, $numBytes = null) {
+        if ($numBytes === null || $numBytes > self::CHUNK_THRESHOLD_SIZE) {
+            return $this->_uploadFileChunked($params, $inStream);
+        }
 
-        return $this->_uploadFile(array('title' => 'Car.jpg'), $inStream, $numBytes);
+        return $this->_uploadFile($params, $inStream, $numBytes);
     }
 
     /**
      * Upload file in chunks
      *
+     * @param  array    $params   The Google Drive query params.
      * @param  string   $path     Google Drive file path
      * @param  resource $inStream File stream
      * @return mixed
      */
-    protected function _uploadFileChunked($path, $inStream) {
+    protected function _uploadFileChunked(array $params, $inStream) {
         // $params = array();
 
         // // New chunk upload
@@ -139,7 +139,7 @@ class GdriveClient
      * @param  int      $numBytes File size.
      * @return mixed
      */
-    protected function _uploadFile($params, $inStream, $numBytes) {
+    protected function _uploadFile(array $params, $inStream, $numBytes) {
         // Set boundary
         $boundary = mt_rand();
 
@@ -149,8 +149,8 @@ class GdriveClient
         $post .= "Content-Type: application/json\r\n\r\n";
         $post .= json_encode($params) . "\r\n";
         $post .= "--$boundary\r\n";
-        $post .= "Content-Type: application/octet-stream\r\n";
-        $post .= "\r\n" . fread($inStream, $numBytes) . "\r\n";
+        $post .= "Content-Type: application/octet-stream\r\n\r\n";
+        $post .= fread($inStream, $numBytes) . "\r\n";
         $post .= "--$boundary--";
 
         // Multipart request

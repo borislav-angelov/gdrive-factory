@@ -2,12 +2,12 @@
 
 include_once '../lib/GdriveClient.php';
 
-$accessToken = 'ya29.ewCtW6c8loihzkUSwTn3W2SPzR68zbTx1LVVRKFVek7aOzM6vUIrkGMa';
+$accessToken = '';
 
 $client = new GdriveClient($accessToken);
 
 $file = fopen('./bmw.jpg', 'rb');
-$response = $client->uploadFile('Car.jpg', $file, filesize('./bmw.jpg'));
+$response = $client->uploadFile(array('title' => 'Car3.jpg'), $file, filesize('./bmw.jpg'));
 fclose($file);
 
 print_r($response);
