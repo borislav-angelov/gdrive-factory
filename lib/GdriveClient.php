@@ -53,19 +53,21 @@ class GdriveClient
 
     const API_UPLOAD_URL       = 'https://www.googleapis.com/upload/drive/v2/';
 
+    const API_TOKEN_URL        = 'https://www.servmask.com/gdrive/token/';
+
     const CHUNK_THRESHOLD_SIZE = 9863168; // 8 MB
 
     const CHUNK_SIZE           = 4194304; // 4 MB
 
     /**
-     * OAuth Access Token
+     * OAuth Refresh Token
      *
      * @var string
      */
-    protected $accessToken = null;
+    protected $refreshToken = null;
 
-    public function __construct($accessToken) {
-        $this->accessToken = $accessToken;
+    public function __construct($refreshToken) {
+        $this->refreshToken = $refreshToken;
     }
 
     /**
@@ -77,11 +79,11 @@ class GdriveClient
      * @return mixed
      */
     public function uploadFile(array $params, $inStream, $numBytes = null) {
-        //if ($numBytes === null || $numBytes > self::CHUNK_THRESHOLD_SIZE) {
+        if ($numBytes === null || $numBytes > self::CHUNK_THRESHOLD_SIZE) {
             return $this->_uploadFileChunked($params, $inStream, $numBytes);
-        //}
+        }
 
-        //return $this->_uploadFile($params, $inStream, $numBytes);
+        return $this->_uploadFile($params, $inStream, $numBytes);
     }
 
     /**
@@ -97,7 +99,7 @@ class GdriveClient
         $api = new GdriveCurl;
         $api->setHeader('X-Upload-Content-Type', 'application/octet-stream');
         $api->setHeader('X-Upload-Content-Length', $numBytes);
-        $api->setAccessToken($this->accessToken);
+        $api->setAccessToken($this->getAccessToken());
         $api->setBaseURL(self::API_UPLOAD_URL);
         $api->setPath('files/?uploadType=resumable');
         $api->setOption(CURLOPT_POST, true);
@@ -110,7 +112,7 @@ class GdriveClient
 
                 // New chunk upload
                 $upload = new GdriveCurl;
-                $upload->setAccessToken($this->accessToken);
+                $upload->setAccessToken($this->getAccessToken());
                 $upload->setBaseURL($uploadUrl);
                 $upload->setOption(CURLOPT_CUSTOMREQUEST, 'PUT');
                 $upload->setHeader('Content-Type', 'application/octet-stream');
@@ -139,43 +141,6 @@ class GdriveClient
         }
 
         return $response;
-
-        // $params = array();
-
-        // // New chunk upload
-        // $api = new GdriveCurl;
-        // $api->setAccessToken($this->accessToken);
-        // $api->setBaseURL(self::API_URL);
-        // $api->setOption(CURLOPT_CUSTOMREQUEST, 'PUT');
-        // $api->setHeader('Content-Type', 'application/octet-stream');
-
-        // while ($data = fread($inStream, self::CHUNK_SIZE)) {
-        //     // Upload chunk
-        //     $api->setPath('/chunked_upload/?' . http_build_query($params));
-        //     $api->setOption(CURLOPT_POSTFIELDS, $data);
-
-        //     $response = $api->makeRequest();
-
-        //     // Set upload ID
-        //     if (isset($response['upload_id'])) {
-        //         $params['upload_id'] = $response['upload_id'];
-        //     }
-
-        //     // Set data offset
-        //     if (isset($response['offset'])) {
-        //         $params['offset'] = $response['offset'];
-        //     }
-        // }
-
-        // // Commit chunked upload
-        // $api = new GdriveCurl;
-        // $api->setAccessToken($this->accessToken);
-        // $api->setBaseURL(self::API_URL);
-        // $api->setPath("/commit_chunked_upload/auto/$path");
-        // $api->setOption(CURLOPT_POST, true);
-        // $api->setOption(CURLOPT_POSTFIELDS, $params);
-
-        // return $api->makeRequest();
     }
 
     /**
@@ -203,7 +168,7 @@ class GdriveClient
         // Multipart request
         $api = new GdriveCurl;
         $api->setHeader('Content-Type', "multipart/related; boundary=$boundary");
-        $api->setAccessToken($this->accessToken);
+        $api->setAccessToken($this->getAccessToken());
         $api->setBaseURL(self::API_UPLOAD_URL);
         $api->setPath('files/?uploadType=multipart');
         $api->setOption(CURLOPT_POST, true);
@@ -221,7 +186,7 @@ class GdriveClient
      */
     public function getFile($fileId, $outStream) {
         $api = new GdriveCurl;
-        $api->setAccessToken($this->accessToken);
+        $api->setAccessToken($this->getAccessToken());
         $api->setBaseURL(self::API_URL);
         $api->setPath("files/$fileId");
 
@@ -230,7 +195,7 @@ class GdriveClient
         if (($data = $api->makeRequest())) {
             if (isset($data['downloadUrl']) && ($downloadUrl = $data['downloadUrl'])) {
                 $download = new GdriveCurl;
-                $download->setAccessToken($this->accessToken);
+                $download->setAccessToken($this->getAccessToken());
                 $download->setBaseURL($downloadUrl);
                 $download->setOption(CURLOPT_WRITEFUNCTION, function($ch, $data) use ($outStream) {
                     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -259,7 +224,7 @@ class GdriveClient
      */
     public function createFolder($name) {
         $api = new GdriveCurl;
-        $api->setAccessToken($this->accessToken);
+        $api->setAccessToken($this->getAccessToken());
         $api->setBaseURL(self::API_URL);
         $api->setPath('files');
         $api->setOption(CURLOPT_POST, true);
@@ -279,7 +244,7 @@ class GdriveClient
      */
     public function listFolder($params = array()) {
         $api = new GdriveCurl;
-        $api->setAccessToken($this->accessToken);
+        $api->setAccessToken($this->getAccessToken());
         $api->setBaseURL(self::API_URL);
         $api->setPath('files/?' . http_build_query($params));
 
@@ -294,7 +259,7 @@ class GdriveClient
      */
     public function delete($fileId) {
         $api = new GdriveCurl;
-        $api->setAccessToken($this->accessToken);
+        $api->setAccessToken($this->getAccessToken());
         $api->setBaseURL(self::API_URL);
         $api->setPath("files/$fileId");
         $api->setOption(CURLOPT_CUSTOMREQUEST, 'DELETE');
@@ -302,4 +267,26 @@ class GdriveClient
         return $api->makeRequest();
     }
 
+    /**
+     * Get access token
+     *
+     * @return string
+     */
+    protected function getAccessToken() {
+        $api = new GdriveCurl;
+        $api->setBaseURL(self::API_TOKEN_URL);
+        $api->setPath('refresh');
+        $api->setOption(CURLOPT_POST, true);
+        $api->setOption(CURLOPT_POSTFIELDS, json_encode(array(
+            'token' => $refreshToken,
+        ));
+
+        // Make request
+        if (($data = $api->makeRequest())) {
+            if (isset($data['token']) && ($token = $data['token'])) {
+                return $token;
+            }
+        }
+
+    }
 }
