@@ -279,7 +279,7 @@ class GdriveClient
         $api->setOption(CURLOPT_POST, true);
         $api->setOption(CURLOPT_POSTFIELDS, json_encode(array(
             'token' => $refreshToken,
-        ));
+        )));
 
         // Make request
         if (($data = $api->makeRequest())) {
