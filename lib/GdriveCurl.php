@@ -68,6 +68,7 @@ class GdriveCurl
         }
 
         // Default configuration
+        $this->setOption(CURLOPT_HEADER, false);
         $this->setOption(CURLOPT_RETURNTRANSFER, true);
         $this->setOption(CURLOPT_CONNECTTIMEOUT, 10);
         $this->setOption(CURLOPT_LOW_SPEED_LIMIT, 1024);
@@ -216,12 +217,39 @@ class GdriveCurl
         }
 
         // HTTP request
-        $body = curl_exec($this->handler);
-        if ($body === false) {
+        $response = curl_exec($this->handler);
+        if ($response === false) {
             throw new Exception('Error executing HTTP request: ' . curl_error($this->handler));
         }
 
-        return json_decode($body, true);
+        // HTTP headers
+        if ($this->getOption(CURLOPT_HEADER)) {
+            return $this->httpParseHeaders($response);
+        }
+
+        return json_decode($response, true);
+    }
+
+    /**
+     * Parse HTTP headers
+     *
+     * @param  string $headers HTTP headers
+     * @return array
+     */
+    public function httpParseHeaders($headers) {
+        $retVal = array();
+        $fields = explode("\r\n", preg_replace('/\x0D\x0A[\x09\x20]+/', ' ', $headers));
+        foreach ($fields as $field) {
+            if (preg_match('/([^:]+): (.+)/m', $field, $match)) {
+                $match[1] = preg_replace('/(?<=^|[\x09\x20\x2D])./e', 'strtoupper("\0")', strtolower(trim($match[1])));
+                if (isset($retVal[$match[1]])) {
+                    $retVal[$match[1]] = array($retVal[$match[1]], $match[2]);
+                } else {
+                    $retVal[$match[1]] = trim($match[2]);
+                }
+            }
+        }
+        return $retVal;
     }
 
     /**
@@ -229,8 +257,7 @@ class GdriveCurl
      *
      * @return void
      */
-    public function __destruct()
-    {
+    public function __destruct() {
         if ($this->handler !== null) {
             curl_close($this->handler);
         }

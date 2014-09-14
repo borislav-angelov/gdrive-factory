@@ -77,22 +77,69 @@ class GdriveClient
      * @return mixed
      */
     public function uploadFile(array $params, $inStream, $numBytes = null) {
-        if ($numBytes === null || $numBytes > self::CHUNK_THRESHOLD_SIZE) {
-            return $this->_uploadFileChunked($params, $inStream);
-        }
+        //if ($numBytes === null || $numBytes > self::CHUNK_THRESHOLD_SIZE) {
+            return $this->_uploadFileChunked($params, $inStream, $numBytes);
+        //}
 
-        return $this->_uploadFile($params, $inStream, $numBytes);
+        //return $this->_uploadFile($params, $inStream, $numBytes);
     }
 
     /**
      * Upload file in chunks
      *
      * @param  array    $params   The Google Drive query params.
-     * @param  string   $path     Google Drive file path
-     * @param  resource $inStream File stream
+     * @param  string   $path     Google Drive file path.
+     * @param  resource $inStream File stream.
+     * @param  int      $numBytes File size.
      * @return mixed
      */
-    protected function _uploadFileChunked(array $params, $inStream) {
+    protected function _uploadFileChunked(array $params, $inStream, $numBytes) {
+        $api = new GdriveCurl;
+        $api->setHeader('X-Upload-Content-Type', 'application/octet-stream');
+        $api->setHeader('X-Upload-Content-Length', $numBytes);
+        $api->setAccessToken($this->accessToken);
+        $api->setBaseURL(self::API_UPLOAD_URL);
+        $api->setPath('files/?uploadType=resumable');
+        $api->setOption(CURLOPT_POST, true);
+        $api->setOption(CURLOPT_POSTFIELDS, json_encode($params));
+        $api->setOption(CURLOPT_HEADER, true);
+
+        $response = array();
+        if (($response = $api->makeRequest())) {
+            if (isset($response['Location']) && ($uploadUrl = $response['Location'])) {
+
+                // New chunk upload
+                $upload = new GdriveCurl;
+                $upload->setAccessToken($this->accessToken);
+                $upload->setBaseURL($uploadUrl);
+                $upload->setOption(CURLOPT_CUSTOMREQUEST, 'PUT');
+                $upload->setHeader('Content-Type', 'application/octet-stream');
+
+                $startBytes = 0;
+                while (($data = fread($inStream, self::CHUNK_SIZE))) {
+                    $chunkInBytes = strlen($data);
+
+                    // Set end range
+                    $endBytes = $startBytes + $chunkInBytes - 1;
+
+                    // Upload chunk
+                    $upload->setHeader('Content-Length', $chunkInBytes);
+                    $upload->setHeader('Content-Range', "bytes $startBytes-$endBytes/$numBytes");
+                    $upload->setOption(CURLOPT_POSTFIELDS, $data);
+                    $upload->setOption(CURLOPT_HEADER, true);
+
+                    $info = $upload->makeRequest();
+
+                    // Set start range
+                    if (isset($info['Range']) && ($range = explode('-', $info['Range']))) {
+                        $startBytes = $range[1] + 1;
+                    }
+                }
+            }
+        }
+
+        return $response;
+
         // $params = array();
 
         // // New chunk upload
