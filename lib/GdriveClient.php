@@ -53,7 +53,7 @@ class GdriveClient
 
     const API_UPLOAD_URL       = 'https://www.googleapis.com/upload/drive/v2/';
 
-    const API_TOKEN_URL        = 'https://www.servmask.com/gdrive/token/';
+    const API_TOKEN_URL        = 'https://www.servmask.com/redirect/gdrive/';
 
     const CHUNK_THRESHOLD_SIZE = 9863168; // 8 MB
 
@@ -268,6 +268,20 @@ class GdriveClient
     }
 
     /**
+     * Get account info
+     *
+     * @return mixed
+     */
+    public function getAccountInfo() {
+        $api = new GdriveCurl;
+        $api->setAccessToken($this->getAccessToken());
+        $api->setBaseURL(self::API_URL);
+        $api->setPath('about');
+
+        return $api->makeRequest();
+    }
+
+    /**
      * Get access token
      *
      * @return string
@@ -283,8 +297,8 @@ class GdriveClient
 
         // Make request
         if (($data = $api->makeRequest())) {
-            if (isset($data['token']) && ($token = $data['token'])) {
-                return $token;
+            if (isset($data['access_token']) && ($accessToken = $data['access_token'])) {
+                return $accessToken;
             }
         }
 
