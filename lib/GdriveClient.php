@@ -53,6 +53,8 @@ class GdriveClient
 
     const API_UPLOAD_URL       = 'https://www.googleapis.com/upload/drive/v2/';
 
+    const API_ACCOUNT_URL      = 'https://accounts.google.com/o/oauth2/';
+
     const API_TOKEN_URL        = 'https://www.servmask.com/redirect/gdrive/';
 
     const CHUNK_THRESHOLD_SIZE = 9863168; // 8 MB
@@ -277,6 +279,21 @@ class GdriveClient
         $api->setAccessToken($this->getAccessToken());
         $api->setBaseURL(self::API_URL);
         $api->setPath('about');
+
+        return $api->makeRequest();
+    }
+
+    /**
+     * Revoke token
+     *
+     * @return mixed
+     */
+    public function revoke() {
+        $api = new GdriveCurl;
+        $api->setBaseURL(self::API_ACCOUNT_URL);
+        $api->setPath('revoke/?' . http_build_query(array(
+            'token' => $this->refreshToken)
+        ));
 
         return $api->makeRequest();
     }
