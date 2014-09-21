@@ -292,8 +292,8 @@ class GdriveClient
         $api = new GdriveCurl;
         $api->setBaseURL(self::API_ACCOUNT_URL);
         $api->setPath('revoke/?' . http_build_query(array(
-            'token' => $this->refreshToken)
-        ));
+            'token' => $this->refreshToken,
+        )));
 
         return $api->makeRequest();
     }
