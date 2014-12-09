@@ -183,9 +183,10 @@ class GdriveClient
      *
      * @param  string   $fileId    The Google Drive File ID.
      * @param  resource $outStream If the file exists, the file contents will be written to this stream.
+     * @param  array    $params    File parameters.
      * @return mixed
      */
-    public function getFile($fileId, $outStream) {
+    public function getFile($fileId, $outStream, $params = array()) {
         $api = new GdriveCurl;
         $api->setAccessToken($this->getAccessToken());
         $api->setBaseURL(self::API_URL);
@@ -209,6 +210,25 @@ class GdriveClient
 
                     return strlen($data);
                 });
+
+                // Partial download
+                if (isset($params['size']) && isset($params['startBytes']) && isset($params['endBytes'])) {
+                    $download->setHeader('Range', "bytes={$params['startBytes']}-{$params['endBytes']}");
+
+                    // Next startBytes
+                    if ($params['size'] < ($params['startBytes'] + self::CHUNK_SIZE)) {
+                        $params['startBytes'] = $params['size'];
+                    } else {
+                        $params['startBytes'] = $params['endBytes'] + 1;
+                    }
+
+                    // Next endBytes
+                    if ($params['size'] < ($params['endBytes'] + self::CHUNK_SIZE)) {
+                        $params['endBytes'] = $params['size'];
+                    } else {
+                        $params['endBytes'] += self::CHUNK_SIZE;
+                    }
+                }
 
                 return $download->makeRequest();
             }
