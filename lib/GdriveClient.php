@@ -82,22 +82,21 @@ class GdriveClient
      */
     public function uploadFile(array $params, $inStream, $numBytes = null) {
         if ($numBytes === null || $numBytes > self::CHUNK_THRESHOLD_SIZE) {
-            return $this->_uploadFileChunked($params, $inStream, $numBytes);
+            return $this->uploadFileChunk($params, $inStream, $numBytes);
         }
 
         return $this->_uploadFile($params, $inStream, $numBytes);
     }
 
     /**
-     * Upload file in chunks
+     * Upload file chunk
      *
      * @param  array    $params   The Google Drive query params.
-     * @param  string   $path     Google Drive file path.
      * @param  resource $inStream File stream.
      * @param  int      $numBytes File size.
      * @return mixed
      */
-    protected function _uploadFileChunked(array $params, $inStream, $numBytes) {
+    public function uploadFileChunk(array $params, $inStream, $numBytes) {
         $api = new GdriveCurl;
         $api->setHeader('X-Upload-Content-Type', 'application/octet-stream');
         $api->setHeader('X-Upload-Content-Length', $numBytes);
