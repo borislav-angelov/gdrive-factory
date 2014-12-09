@@ -29,7 +29,7 @@
  * @author    Bobby Angelov <bobby@servmask.com>
  * @copyright 2014 Yani Iliev, Bobby Angelov
  * @license   https://raw.github.com/borislav-angelov/gdrive-factory/master/LICENSE The MIT License (MIT)
- * @version   GIT: 1.1.0
+ * @version   GIT: 1.2.0
  * @link      https://github.com/borislav-angelov/gdrive-factory/
  */
 
@@ -44,7 +44,7 @@ require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . 'GdriveCurl.php';
  * @author    Bobby Angelov <bobby@servmask.com>
  * @copyright 2014 Yani Iliev, Bobby Angelov
  * @license   https://raw.github.com/borislav-angelov/gdrive-factory/master/LICENSE The MIT License (MIT)
- * @version   GIT: 1.1.0
+ * @version   GIT: 1.2.0
  * @link      https://github.com/borislav-angelov/gdrive-factory/
  */
 class GdriveClient
@@ -82,22 +82,21 @@ class GdriveClient
      */
     public function uploadFile(array $params, $inStream, $numBytes = null) {
         if ($numBytes === null || $numBytes > self::CHUNK_THRESHOLD_SIZE) {
-            return $this->_uploadFileChunked($params, $inStream, $numBytes);
+            return $this->uploadFileChunk($params, $inStream, $numBytes);
         }
 
         return $this->_uploadFile($params, $inStream, $numBytes);
     }
 
     /**
-     * Upload file in chunks
+     * Upload file chunk
      *
      * @param  array    $params   The Google Drive query params.
-     * @param  string   $path     Google Drive file path.
      * @param  resource $inStream File stream.
      * @param  int      $numBytes File size.
      * @return mixed
      */
-    protected function _uploadFileChunked(array $params, $inStream, $numBytes) {
+    public function uploadFileChunk(array $params, $inStream, $numBytes) {
         $api = new GdriveCurl;
         $api->setHeader('X-Upload-Content-Type', 'application/octet-stream');
         $api->setHeader('X-Upload-Content-Length', $numBytes);
@@ -184,9 +183,10 @@ class GdriveClient
      *
      * @param  string   $fileId    The Google Drive File ID.
      * @param  resource $outStream If the file exists, the file contents will be written to this stream.
+     * @param  array    $params    File parameters.
      * @return mixed
      */
-    public function getFile($fileId, $outStream) {
+    public function getFile($fileId, $outStream, $params = array()) {
         $api = new GdriveCurl;
         $api->setAccessToken($this->getAccessToken());
         $api->setBaseURL(self::API_URL);
@@ -210,6 +210,25 @@ class GdriveClient
 
                     return strlen($data);
                 });
+
+                // Partial download
+                if (isset($params['size']) && isset($params['startBytes']) && isset($params['endBytes'])) {
+                    $download->setHeader('Range', "bytes={$params['startBytes']}-{$params['endBytes']}");
+
+                    // Next startBytes
+                    if ($params['size'] < ($params['startBytes'] + self::CHUNK_SIZE)) {
+                        $params['startBytes'] = $params['size'];
+                    } else {
+                        $params['startBytes'] = $params['endBytes'] + 1;
+                    }
+
+                    // Next endBytes
+                    if ($params['size'] < ($params['endBytes'] + self::CHUNK_SIZE)) {
+                        $params['endBytes'] = $params['size'];
+                    } else {
+                        $params['endBytes'] += self::CHUNK_SIZE;
+                    }
+                }
 
                 return $download->makeRequest();
             }
